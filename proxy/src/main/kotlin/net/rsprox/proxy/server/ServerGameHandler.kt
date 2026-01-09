@@ -21,12 +21,17 @@ import net.rsprox.proxy.attributes.INCOMING_BANK_PIN
 import net.rsprox.proxy.channel.getBinaryBlob
 import net.rsprox.proxy.channel.getServerToClientStreamCipher
 import net.rsprox.proxy.huffman.HuffmanProvider
+import net.rsprox.proxy.plugin.PacketTransforms
+import net.rsprox.proxy.plugin.ScriptTriggerBus
+import net.rsprox.proxy.plugin.RevisionDecoder
 import net.rsprox.proxy.worlds.WorldListProvider
+import net.rsprox.scripting.api.WorldTransfer
 import net.rsprox.shared.StreamDirection
 
 public class ServerGameHandler(
     private val clientChannel: Channel,
     private val worldListProvider: WorldListProvider,
+    private val revisionDecoder: RevisionDecoder,
 ) : SimpleChannelInboundHandler<ServerPacket<*>>() {
     private var bankPinComponent: CombinedId? = null
 
@@ -34,24 +39,30 @@ public class ServerGameHandler(
         ctx: ChannelHandlerContext,
         msg: ServerPacket<*>,
     ) {
+        msg.revisionDecoder = revisionDecoder
+        val transformed = PacketTransforms.transformServer(msg)
+        if (transformed == null) {
+            msg.payload.release()
+            return
+        }
         try {
-            val new = redirectTraffic(ctx, msg)
+            val new = redirectTraffic(ctx, transformed)
             try {
                 clientChannel.writeAndFlush(new.encode(ctx.alloc()))
             } finally {
-                if (new != msg) {
+                if (new != transformed) {
                     new.payload.release()
                 }
             }
             val blob = ctx.channel().getBinaryBlob()
-            eraseSensitiveContents(ctx, msg, blob.header.revision)
+            eraseSensitiveContents(ctx, transformed, blob.header.revision)
             blob.append(
                 StreamDirection.SERVER_TO_CLIENT,
-                msg.encode(ctx.alloc(), mod = false),
+                transformed.encode(ctx.alloc(), mod = false),
                 ctx.channel(),
             )
         } finally {
-            msg.payload.release()
+            transformed.payload.release()
         }
     }
 
@@ -70,6 +81,14 @@ public class ServerGameHandler(
             checkNotNull(worldListProvider.get().getTargetWorld(host)) {
                 "Unable to find world at host address $host, id $id, properties $properties"
             }
+        ScriptTriggerBus.fireWorldChanged(
+            WorldTransfer(
+                originalHost = host,
+                worldId = id,
+                properties = properties,
+                redirectedHost = world.localHostAddress.toString(),
+            ),
+        )
         val encoded = ctx.alloc().buffer()
         // Redirect the world to one of our local hosts
         encoded.pjstr(world.localHostAddress.toString())

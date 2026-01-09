@@ -15,6 +15,7 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 include(
     "proxy",
+    "scripting-api",
     "processor",
     "protocol",
     "patch",

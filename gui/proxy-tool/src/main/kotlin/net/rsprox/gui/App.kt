@@ -234,6 +234,7 @@ public class App {
         return SideBar().apply {
             addButton(AppIcons.Settings, "Settings", SettingsSidePanel(service))
             addButton(AppIcons.Filter, "Filters", FiltersSidePanel(service))
+            addButton(AppIcons.Run, "Scripts", ScriptsSidePanel(service))
             selectedIndex = service.getFiltersStatus()
         }
     }

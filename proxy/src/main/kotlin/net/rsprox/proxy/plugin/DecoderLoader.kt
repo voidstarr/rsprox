@@ -4,6 +4,7 @@ import com.github.michaelbull.logging.InlineLogger
 import net.rsprot.compression.HuffmanCodec
 import net.rsprox.cache.api.Cache
 import net.rsprox.cache.api.CacheProvider
+import net.rsprox.protocol.ClientPacketEncoder
 import net.rsprox.protocol.v223.ClientPacketDecoderServiceV223
 import net.rsprox.protocol.v223.GameClientProtProviderV223
 import net.rsprox.protocol.v223.GameServerProtProviderV223
@@ -45,6 +46,7 @@ import net.rsprox.protocol.v232.GameClientProtProviderV232
 import net.rsprox.protocol.v232.GameServerProtProviderV232
 import net.rsprox.protocol.v232.ServerPacketDecoderServiceV232
 import net.rsprox.protocol.v233.ClientPacketDecoderServiceV233
+import net.rsprox.protocol.v233.ClientPacketEncoderServiceV233
 import net.rsprox.protocol.v233.GameClientProtProviderV233
 import net.rsprox.protocol.v233.GameServerProtProviderV233
 import net.rsprox.protocol.v233.ServerPacketDecoderServiceV233
@@ -65,6 +67,8 @@ import kotlin.system.exitProcess
 import kotlin.time.measureTimedValue
 
 public class DecoderLoader {
+    private val dummyClientEncoder = ClientPacketEncoder { _, _, _ -> throw UnsupportedOperationException("Encoding not supported for this revision") }
+
     private data class RevisionKey(
         val revision: Int?,
         val cache: Cache,
@@ -196,6 +200,7 @@ public class DecoderLoader {
         return RevisionDecoder(
             223,
             ClientPacketDecoderServiceV223(huffmanCodec),
+            dummyClientEncoder,
             ServerPacketDecoderServiceV223(huffmanCodec, cache),
             GameClientProtProviderV223,
             GameServerProtProviderV223,
@@ -210,6 +215,7 @@ public class DecoderLoader {
         return RevisionDecoder(
             224,
             ClientPacketDecoderServiceV224(huffmanCodec),
+            dummyClientEncoder,
             ServerPacketDecoderServiceV224(huffmanCodec, cache),
             GameClientProtProviderV224,
             GameServerProtProviderV224,
@@ -224,6 +230,7 @@ public class DecoderLoader {
         return RevisionDecoder(
             225,
             ClientPacketDecoderServiceV225(huffmanCodec),
+            dummyClientEncoder,
             ServerPacketDecoderServiceV225(huffmanCodec, cache),
             GameClientProtProviderV225,
             GameServerProtProviderV225,
@@ -238,6 +245,7 @@ public class DecoderLoader {
         return RevisionDecoder(
             226,
             ClientPacketDecoderServiceV226(huffmanCodec),
+            dummyClientEncoder,
             ServerPacketDecoderServiceV226(huffmanCodec, cache),
             GameClientProtProviderV226,
             GameServerProtProviderV226,
@@ -252,6 +260,7 @@ public class DecoderLoader {
         return RevisionDecoder(
             227,
             ClientPacketDecoderServiceV227(huffmanCodec),
+            dummyClientEncoder,
             ServerPacketDecoderServiceV227(huffmanCodec, cache),
             GameClientProtProviderV227,
             GameServerProtProviderV227,
@@ -266,6 +275,7 @@ public class DecoderLoader {
         return RevisionDecoder(
             228,
             ClientPacketDecoderServiceV228(huffmanCodec),
+            dummyClientEncoder,
             ServerPacketDecoderServiceV228(huffmanCodec, cache),
             GameClientProtProviderV228,
             GameServerProtProviderV228,
@@ -280,6 +290,7 @@ public class DecoderLoader {
         return RevisionDecoder(
             229,
             ClientPacketDecoderServiceV229(huffmanCodec),
+            dummyClientEncoder,
             ServerPacketDecoderServiceV229(huffmanCodec, cache),
             GameClientProtProviderV229,
             GameServerProtProviderV229,
@@ -294,6 +305,7 @@ public class DecoderLoader {
         return RevisionDecoder(
             230,
             ClientPacketDecoderServiceV230(huffmanCodec),
+            dummyClientEncoder,
             ServerPacketDecoderServiceV230(huffmanCodec, cache),
             GameClientProtProviderV230,
             GameServerProtProviderV230,
@@ -308,6 +320,7 @@ public class DecoderLoader {
         return RevisionDecoder(
             231,
             ClientPacketDecoderServiceV231(huffmanCodec),
+            dummyClientEncoder,
             ServerPacketDecoderServiceV231(huffmanCodec, cache),
             GameClientProtProviderV231,
             GameServerProtProviderV231,
@@ -322,6 +335,7 @@ public class DecoderLoader {
         return RevisionDecoder(
             232,
             ClientPacketDecoderServiceV232(huffmanCodec),
+            dummyClientEncoder,
             ServerPacketDecoderServiceV232(huffmanCodec, cache),
             GameClientProtProviderV232,
             GameServerProtProviderV232,
@@ -336,6 +350,7 @@ public class DecoderLoader {
         return RevisionDecoder(
             233,
             ClientPacketDecoderServiceV233(huffmanCodec),
+            ClientPacketEncoderServiceV233(huffmanCodec),
             ServerPacketDecoderServiceV233(huffmanCodec, cache),
             GameClientProtProviderV233,
             GameServerProtProviderV233,
@@ -350,6 +365,7 @@ public class DecoderLoader {
         return RevisionDecoder(
             234,
             ClientPacketDecoderServiceV234(huffmanCodec),
+            dummyClientEncoder,
             ServerPacketDecoderServiceV234(huffmanCodec, cache),
             GameClientProtProviderV234,
             GameServerProtProviderV234,
@@ -364,6 +380,7 @@ public class DecoderLoader {
         return RevisionDecoder(
             235,
             ClientPacketDecoderServiceV235(huffmanCodec),
+            dummyClientEncoder,
             ServerPacketDecoderServiceV235(huffmanCodec, cache),
             GameClientProtProviderV235,
             GameServerProtProviderV235,

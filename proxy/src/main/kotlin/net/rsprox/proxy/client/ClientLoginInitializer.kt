@@ -19,6 +19,7 @@ import net.rsprox.proxy.plugin.DecoderLoader
 import net.rsprox.proxy.target.ProxyTarget
 import net.rsprox.proxy.util.ChannelConnectionHandler
 import net.rsprox.proxy.worlds.LocalHostAddress
+import net.rsprox.scripting.api.ConnectionSide
 import net.rsprox.shared.filters.PropertyFilterSetStore
 import net.rsprox.shared.settings.SettingSetStore
 import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters
@@ -84,8 +85,8 @@ public class ClientLoginInitializer(
                         settings,
                     ),
                 )
-                clientChannel.pipeline().addLast(ChannelConnectionHandler(serverChannel, connections))
-                serverChannel.pipeline().addLast(ChannelConnectionHandler(clientChannel, connections))
+                clientChannel.pipeline().addLast(ChannelConnectionHandler(serverChannel, connections, ConnectionSide.CLIENT))
+                serverChannel.pipeline().addLast(ChannelConnectionHandler(clientChannel, connections, ConnectionSide.SERVER))
                 val builder = BinaryHeader.Builder()
                 val name = ClientTypeDictionary[clientChannel.getPort()]
                 builder.clientName(name)

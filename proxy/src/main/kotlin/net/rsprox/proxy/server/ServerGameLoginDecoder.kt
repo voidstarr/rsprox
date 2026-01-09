@@ -30,9 +30,12 @@ import net.rsprox.proxy.client.ClientRelayHandler
 import net.rsprox.proxy.config.LATEST_SUPPORTED_PLUGIN
 import net.rsprox.proxy.connection.ProxyConnectionContainer
 import net.rsprox.proxy.plugin.DecoderLoader
+import net.rsprox.proxy.plugin.ScriptTriggerBus
+import net.rsprox.proxy.plugin.RevisionDecoder
 import net.rsprox.proxy.server.prot.LoginServerProt
 import net.rsprox.proxy.target.ProxyTarget
 import net.rsprox.proxy.util.UserUid
+import net.rsprox.scripting.api.LoginInfo
 import net.rsprox.shared.StreamDirection
 import net.rsprox.shared.filters.PropertyFilterSetStore
 import net.rsprox.shared.settings.SettingSetStore
@@ -269,7 +272,8 @@ public class ServerGameLoginDecoder(
                 pdata(payload.copy())
             }
             val cache = blob.liveCache()
-            val prot = decoderLoader.getDecoder(target.revisionNum(clientChannel), cache).gameServerProtProvider[0xFF]
+            val revisionDecoder = decoderLoader.getDecoder(target.revisionNum(clientChannel), cache)
+            val prot = revisionDecoder.gameServerProtProvider[0xFF]
             val packet =
                 ServerPacket(
                     prot,
@@ -287,10 +291,10 @@ public class ServerGameLoginDecoder(
             pipeline.replace<ServerGameLoginDecoder>(
                 ServerGenericDecoder(
                     serverChannel.getServerToClientStreamCipher(),
-                    decoderLoader.getDecoder(target.revisionNum(clientChannel), cache).gameServerProtProvider,
+                    revisionDecoder.gameServerProtProvider,
                 ),
             )
-            pipeline.replace<ServerRelayHandler>(ServerGameHandler(clientChannel, target.worldListProvider))
+            pipeline.replace<ServerRelayHandler>(ServerGameHandler(clientChannel, target.worldListProvider, revisionDecoder))
             switchClientToGameDecoding(ctx, cache)
         }
         if (state == State.LOGIN_OK_READ_DATA) {
@@ -367,19 +371,23 @@ public class ServerGameLoginDecoder(
                 p8(userHash)
             }
             val cache = blob.liveCache()
+            val revisionDecoder = decoderLoader.getDecoder(target.revisionNum(clientChannel), cache)
             val pipeline = ctx.pipeline()
             pipeline.replace<ServerGameLoginDecoder>(
                 ServerGenericDecoder(
                     serverChannel.getServerToClientStreamCipher(),
-                    decoderLoader
-                        .getDecoder(
-                            target.revisionNum(clientChannel),
-                            cache,
-                        ).gameServerProtProvider,
+                    revisionDecoder.gameServerProtProvider,
                 ),
             )
-            pipeline.replace<ServerRelayHandler>(ServerGameHandler(clientChannel, target.worldListProvider))
+            pipeline.replace<ServerRelayHandler>(ServerGameHandler(clientChannel, target.worldListProvider, revisionDecoder))
             switchClientToGameDecoding(ctx, cache)
+            ScriptTriggerBus.fireLogin(
+                LoginInfo(
+                    revision = target.revisionNum(clientChannel),
+                    members = members,
+                    localPlayerIndex = localPlayerIndex,
+                ),
+            )
         }
     }
 
@@ -390,13 +398,14 @@ public class ServerGameLoginDecoder(
         val cipher = ctx.channel().getClientToServerStreamCipher()
         val clientPipeline = clientChannel.pipeline()
         clientPipeline.remove<ClientRelayHandler>()
+        val revisionDecoder = decoderLoader.getDecoder(target.revisionNum(clientChannel), cache)
         clientPipeline.addLast(
             ClientGenericDecoder(
                 cipher,
-                decoderLoader.getDecoder(target.revisionNum(clientChannel), cache).gameClientProtProvider,
+                revisionDecoder.gameClientProtProvider,
             ),
         )
-        clientPipeline.addLast(ClientGameHandler(ctx.channel()))
+        clientPipeline.addLast(ClientGameHandler(ctx.channel(), revisionDecoder))
     }
 
     private inline fun writeToClient(function: JagByteBuf.() -> Unit): ChannelFuture {

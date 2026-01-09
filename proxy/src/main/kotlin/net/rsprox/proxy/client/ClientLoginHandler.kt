@@ -42,6 +42,7 @@ import net.rsprox.proxy.target.ProxyTarget
 import net.rsprox.proxy.util.ChannelConnectionHandler
 import net.rsprox.proxy.util.xteaEncrypt
 import net.rsprox.proxy.worlds.WorldFlag
+import net.rsprox.scripting.api.ConnectionSide
 import net.rsprox.shared.filters.PropertyFilterSetStore
 import net.rsprox.shared.settings.SettingSetStore
 import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters
@@ -450,7 +451,7 @@ public class ClientLoginHandler(
         val pipeline = serverChannel.pipeline()
         pipeline.addLastWithName(ServerGenericDecoder(NopStreamCipher, LoginServerProtProvider))
         pipeline.addLastWithName(ServerJs5LoginHandler(ctx.channel()))
-        pipeline.addLastWithName(ChannelConnectionHandler(serverChannel, connections))
+            pipeline.addLastWithName(ChannelConnectionHandler(ctx.channel(), connections, ConnectionSide.SERVER))
     }
 
     private fun switchServerToGameLoginDecoding(ctx: ChannelHandlerContext) {
@@ -467,7 +468,7 @@ public class ClientLoginHandler(
             ),
         )
         pipeline.addLastWithName(ServerRelayHandler(ctx.channel()))
-        pipeline.addLastWithName(ChannelConnectionHandler(serverChannel, connections))
+            pipeline.addLastWithName(ChannelConnectionHandler(ctx.channel(), connections, ConnectionSide.SERVER))
     }
 
     private companion object {

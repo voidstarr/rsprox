@@ -41,6 +41,7 @@ import net.rsprox.proxy.futures.asCompletableFuture
 import net.rsprox.proxy.http.GamePackProvider
 import net.rsprox.proxy.huffman.HuffmanProvider
 import net.rsprox.proxy.plugin.DecoderLoader
+import net.rsprox.proxy.plugin.ScriptManager
 import net.rsprox.proxy.rsa.publicKey
 import net.rsprox.proxy.rsa.readOrGenerateRsaKey
 import net.rsprox.proxy.runelite.RuneliteLauncher
@@ -109,6 +110,8 @@ public class ProxyService(
         private set
     private val currentProxyTarget: ProxyTargetConfig
         get() = proxyTargets[getSelectedProxyTarget()]
+
+    public val scriptManager: ScriptManager = ScriptManager(SCRIPTS_DIRECTORY)
 
     public fun start(
         rspsJavConfigUrl: String?,

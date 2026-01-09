@@ -6,13 +6,46 @@ import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
 import net.rsprox.proxy.attributes.BINARY_BLOB
 import net.rsprox.proxy.connection.ProxyConnectionContainer
+import net.rsprox.proxy.plugin.ScriptTriggerBus
+import net.rsprox.scripting.api.ConnectionInfo
+import net.rsprox.scripting.api.ConnectionSide
 import java.io.IOException
 
 public class ChannelConnectionHandler(
     private val targetChannel: Channel,
     private val connections: ProxyConnectionContainer,
+    private val side: ConnectionSide,
 ) : ChannelInboundHandlerAdapter() {
+    private var firedActive = false
+
+    override fun handlerAdded(ctx: ChannelHandlerContext) {
+        if (ctx.channel().isActive) {
+            fireActiveOnce(ctx)
+        }
+        super.handlerAdded(ctx)
+    }
+
+    override fun channelActive(ctx: ChannelHandlerContext) {
+        fireActiveOnce(ctx)
+        super.channelActive(ctx)
+    }
+
+    private fun fireActiveOnce(ctx: ChannelHandlerContext) {
+        if (firedActive) return
+        firedActive = true
+        ScriptTriggerBus.fire(
+            side,
+            active = true,
+            channel = ctx.channel(),
+        )
+    }
+
     override fun channelInactive(ctx: ChannelHandlerContext) {
+        ScriptTriggerBus.fire(
+            side,
+            active = false,
+            channel = ctx.channel(),
+        )
         if (targetChannel.isActive) {
             targetChannel.close()
         }
@@ -38,5 +71,28 @@ public class ChannelConnectionHandler(
 
     private companion object {
         private val logger = InlineLogger()
+    }
+}
+
+private fun ScriptTriggerBus.fire(
+    side: ConnectionSide,
+    active: Boolean,
+    channel: Channel,
+) {
+    val info =
+        ConnectionInfo(
+            id = channel.id().asShortText(),
+            localAddress = channel.localAddress()?.toString(),
+            remoteAddress = channel.remoteAddress()?.toString(),
+            side = side,
+        )
+    when (side) {
+        ConnectionSide.CLIENT -> {
+            if (active) fireClientConnected(info) else fireClientDisconnected(info)
+        }
+
+        ConnectionSide.SERVER -> {
+            if (active) fireServerConnected(info) else fireServerDisconnected(info)
+        }
     }
 }

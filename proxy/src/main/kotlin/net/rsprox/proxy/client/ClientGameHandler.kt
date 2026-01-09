@@ -8,26 +8,35 @@ import net.rsprot.buffer.extensions.p4
 import net.rsprot.buffer.extensions.toJagByteBuf
 import net.rsprox.proxy.attributes.INCOMING_BANK_PIN
 import net.rsprox.proxy.channel.getBinaryBlob
+import net.rsprox.proxy.plugin.PacketTransforms
+import net.rsprox.proxy.plugin.RevisionDecoder
 import net.rsprox.shared.StreamDirection
 
 public class ClientGameHandler(
     private val serverChannel: Channel,
+    private val revisionDecoder: RevisionDecoder,
 ) : SimpleChannelInboundHandler<ClientPacket<*>>() {
     override fun channelRead0(
         ctx: ChannelHandlerContext,
         msg: ClientPacket<*>,
     ) {
+        msg.revisionDecoder = revisionDecoder
+        val transformed = PacketTransforms.transformClient(msg)
+        if (transformed == null) {
+            msg.payload.release()
+            return
+        }
         try {
-            serverChannel.writeAndFlush(msg.encode(ctx.alloc()))
+            serverChannel.writeAndFlush(transformed.encode(ctx.alloc()))
             val blob = ctx.channel().getBinaryBlob()
-            eraseSensitiveContents(ctx, msg, blob.header.revision)
+            eraseSensitiveContents(ctx, transformed, blob.header.revision)
             blob.append(
                 StreamDirection.CLIENT_TO_SERVER,
-                msg.encode(ctx.alloc(), mod = false),
+                transformed.encode(ctx.alloc(), mod = false),
                 serverChannel,
             )
         } finally {
-            msg.payload.release()
+            transformed.payload.release()
         }
     }
 
