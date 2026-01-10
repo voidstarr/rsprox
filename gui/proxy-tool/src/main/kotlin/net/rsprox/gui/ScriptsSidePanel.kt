@@ -8,8 +8,6 @@ import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
-import java.awt.event.MouseAdapter
-import java.awt.event.MouseEvent
 import java.io.PrintWriter
 import java.io.StringWriter
 import javax.swing.table.AbstractTableModel
@@ -33,59 +31,24 @@ public class ScriptsSidePanel(private val proxyService: ProxyService) : JPanel()
         scriptTable.columnModel.getColumn(0).minWidth = 60
         scriptTable.columnModel.getColumn(0).preferredWidth = 60
 
-        scriptTable.addMouseListener(
-            object : MouseAdapter() {
-                override fun mouseClicked(e: MouseEvent) {
-                    if (e.clickCount != 2 || !SwingUtilities.isLeftMouseButton(e)) return
-                    val row = scriptTable.rowAtPoint(e.point)
-                    val col = scriptTable.columnAtPoint(e.point)
-                    if (row < 0 || col != 1) return
-                    val script = tableModel.getScriptAt(row) ?: return
-                    val dialog = ScriptEditorDialog(SwingUtilities.getWindowAncestor(this@ScriptsSidePanel) as JFrame, script)
-                    dialog.isVisible = true
-                    val result = dialog.result
-                    if (result != null) {
-                        try {
-                            proxyService.scriptManager.updateScript(script, result.name, result.code)
-                        } catch (e: Exception) {
-                            showScriptError("Error", e)
-                        }
-                        refreshList()
-                    }
-                }
-            },
-        )
-
         add(JScrollPane(scriptTable), BorderLayout.CENTER)
 
         val buttonsPanel = JPanel(MigLayout("fill"))
-        val addButton = FlatButton().apply { text = "Add" }
-        val removeButton = FlatButton().apply { text = "Remove" }
+        val reloadButton = FlatButton().apply { text = "Reload" }
         val logsButton = FlatButton().apply { text = "Logs" }
 
-        buttonsPanel.add(addButton, "grow")
-        buttonsPanel.add(removeButton, "grow, wrap")
-
-        buttonsPanel.add(logsButton, "span, grow")
+        buttonsPanel.add(reloadButton, "grow")
+        buttonsPanel.add(logsButton, "grow")
 
         add(buttonsPanel, BorderLayout.SOUTH)
 
-        addButton.addActionListener {
-            val dialog = ScriptEditorDialog(SwingUtilities.getWindowAncestor(this) as JFrame, null)
-            dialog.isVisible = true
-            val result = dialog.result
-            if (result != null) {
-                proxyService.scriptManager.addScript(result.name, result.code)
-                refreshList()
+        reloadButton.addActionListener {
+            try {
+                proxyService.scriptManager.reload()
+            } catch (e: Exception) {
+                showScriptError("Error", e)
             }
-        }
-
-        removeButton.addActionListener {
-            val selected = tableModel.getScriptAt(scriptTable.selectedRow) ?: return@addActionListener
-            if (JOptionPane.showConfirmDialog(this, "Delete script '${selected.name}'?", "Confirm", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
-                proxyService.scriptManager.removeScript(selected)
-                refreshList()
-            }
+            refreshList()
         }
 
         logsButton.addActionListener {
@@ -156,12 +119,14 @@ public class ScriptsSidePanel(private val proxyService: ProxyService) : JPanel()
 
         override fun getRowCount(): Int = scripts.size
 
-        override fun getColumnCount(): Int = 2
+        override fun getColumnCount(): Int = 4
 
         override fun getColumnName(column: Int): String =
             when (column) {
                 0 -> "Enabled"
                 1 -> "Name"
+                2 -> "Jar"
+                3 -> "Class"
                 else -> ""
             }
 
@@ -169,6 +134,8 @@ public class ScriptsSidePanel(private val proxyService: ProxyService) : JPanel()
             when (columnIndex) {
                 0 -> java.lang.Boolean::class.java
                 1 -> String::class.java
+                2 -> String::class.java
+                3 -> String::class.java
                 else -> Any::class.java
             }
 
@@ -179,6 +146,8 @@ public class ScriptsSidePanel(private val proxyService: ProxyService) : JPanel()
             return when (columnIndex) {
                 0 -> script.enabled
                 1 -> script.name
+                2 -> script.jarPath.fileName.toString()
+                3 -> script.implementationClassName
                 else -> ""
             }
         }

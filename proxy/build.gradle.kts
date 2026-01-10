@@ -35,9 +35,6 @@ dependencies {
     findSubprojects(projects.protocol.name).forEach {
         implementation(it)
     }
-    implementation(kotlin("scripting-common"))
-    implementation(kotlin("scripting-jvm"))
-    implementation(kotlin("scripting-jvm-host"))
 }
 
 tasks.build.configure {

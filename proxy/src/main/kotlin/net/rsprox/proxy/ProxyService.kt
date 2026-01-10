@@ -584,6 +584,7 @@ public class ProxyService(
     }
 
     public fun safeShutdown() {
+        runCatching { scriptManager.close() }
         for (connection in connections.listConnections()) {
             closeActiveChannel(connection.clientChannel)
             closeActiveChannel(connection.serverChannel)
