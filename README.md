@@ -139,6 +139,15 @@ transcripts.
 
 ![Example](https://media.z-kris.com/2025/08/java_ywUBskAkZ4.gif)
 
+### User Scripts
+RSProx loads user-written scripts packaged as JARs.
+
+- Drop JARs into `~/.rsprox/scripts/`.
+- Each JAR registers one or more `net.rsprox.proxy.plugin.RSProxScript` implementations via `ServiceLoader`.
+- Newly discovered scripts default to enabled on next startup.
+
+See docs/examples/script-project for a minimal working example project.
+
 ### Jagex Accounts
 Jagex Accounts are now fully supported. There are two ways of using a Jagex
 account.
