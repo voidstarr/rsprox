@@ -26,6 +26,9 @@ import net.rsprox.proxy.config.ProxyProperty.Companion.BINARY_WRITE_INTERVAL_SEC
 import net.rsprox.proxy.config.ProxyProperty.Companion.BIND_TIMEOUT_SECONDS
 import net.rsprox.proxy.config.ProxyProperty.Companion.FILTERS_STATUS
 import net.rsprox.proxy.config.ProxyProperty.Companion.JAV_CONFIG_ENDPOINT
+import net.rsprox.proxy.config.ProxyProperty.Companion.MCP_BIND_ADDRESS
+import net.rsprox.proxy.config.ProxyProperty.Companion.MCP_ENABLED
+import net.rsprox.proxy.config.ProxyProperty.Companion.MCP_PORT
 import net.rsprox.proxy.config.ProxyProperty.Companion.PROXY_PORT_MIN
 import net.rsprox.proxy.config.ProxyProperty.Companion.RUNELITE_RSPROX_CONNECTION
 import net.rsprox.proxy.config.ProxyProperty.Companion.SELECTED_CLIENT
@@ -40,6 +43,9 @@ import net.rsprox.proxy.filters.DefaultPropertyFilterSetStore
 import net.rsprox.proxy.futures.asCompletableFuture
 import net.rsprox.proxy.http.GamePackProvider
 import net.rsprox.proxy.huffman.HuffmanProvider
+import net.rsprox.proxy.mcp.http.RsProxMcpHttpServer
+import net.rsprox.proxy.mcp.transcript.TranscriptStore
+import net.rsprox.proxy.mcp.transcript.TranscriptStoreSessionMonitor
 import net.rsprox.proxy.plugin.DecoderLoader
 import net.rsprox.proxy.plugin.ScriptManager
 import net.rsprox.proxy.rsa.publicKey
@@ -110,6 +116,9 @@ public class ProxyService(
         private set
     private val currentProxyTarget: ProxyTargetConfig
         get() = proxyTargets[getSelectedProxyTarget()]
+
+    private val mcpTranscriptStore: TranscriptStore = TranscriptStore()
+    private var mcpHttpServer: RsProxMcpHttpServer? = null
 
     public val scriptManager: ScriptManager = ScriptManager(SCRIPTS_DIRECTORY)
 
@@ -509,6 +518,81 @@ public class ProxyService(
         properties.saveProperties(PROPERTIES_FILE)
     }
 
+    public fun isMcpEnabled(): Boolean {
+        return properties.getPropertyOrNull(MCP_ENABLED) ?: false
+    }
+
+    public fun getMcpBindAddress(): String {
+        return properties.getPropertyOrNull(MCP_BIND_ADDRESS) ?: "127.0.0.1"
+    }
+
+    public fun getMcpPort(): Int {
+        return properties.getPropertyOrNull(MCP_PORT) ?: 9630
+    }
+
+    public fun setMcpBindAddress(address: String) {
+        properties.setProperty(MCP_BIND_ADDRESS, address)
+        properties.saveProperties(PROPERTIES_FILE)
+        if (isMcpEnabled()) {
+            restartMcpServer()
+        }
+    }
+
+    public fun setMcpPort(port: Int) {
+        require(port in 1..65535) { "Invalid port: $port" }
+        properties.setProperty(MCP_PORT, port)
+        properties.saveProperties(PROPERTIES_FILE)
+        if (isMcpEnabled()) {
+            restartMcpServer()
+        }
+    }
+
+    public fun setMcpEndpoint(
+        bindAddress: String,
+        port: Int,
+    ) {
+        require(port in 1..65535) { "Invalid port: $port" }
+        properties.setProperty(MCP_BIND_ADDRESS, bindAddress)
+        properties.setProperty(MCP_PORT, port)
+        properties.saveProperties(PROPERTIES_FILE)
+        if (isMcpEnabled()) {
+            restartMcpServer()
+        }
+    }
+
+    public fun setMcpEnabled(enabled: Boolean) {
+        if (enabled) {
+            startMcpServer()
+            properties.setProperty(MCP_ENABLED, true)
+            properties.saveProperties(PROPERTIES_FILE)
+        } else {
+            stopMcpServer()
+            properties.setProperty(MCP_ENABLED, false)
+            properties.saveProperties(PROPERTIES_FILE)
+        }
+    }
+
+    public fun startMcpServer() {
+        if (mcpHttpServer?.isRunning == true) {
+            return
+        }
+        val bind = getMcpBindAddress()
+        val port = getMcpPort()
+        val server = RsProxMcpHttpServer(bind, port, mcpTranscriptStore)
+        server.start()
+        mcpHttpServer = server
+    }
+
+    public fun stopMcpServer() {
+        runCatching { mcpHttpServer?.stop() }
+        mcpHttpServer = null
+    }
+
+    public fun restartMcpServer() {
+        stopMcpServer()
+        startMcpServer()
+    }
+
     private fun setShutdownHook() {
         Runtime.getRuntime().addShutdownHook(
             Thread {
@@ -584,6 +668,7 @@ public class ProxyService(
     }
 
     public fun safeShutdown() {
+        stopMcpServer()
         runCatching { scriptManager.close() }
         for (connection in connections.listConnections()) {
             closeActiveChannel(connection.clientChannel)
@@ -662,7 +747,7 @@ public class ProxyService(
             logger.error(t) { "Unable to bind network port $port for native client." }
             return
         }
-        this.connections.addSessionMonitor(port, sessionMonitor)
+        this.connections.addSessionMonitor(port, wrapSessionMonitor(port, sessionMonitor))
         ClientTypeDictionary[port] = "RuneLite (${operatingSystem.shortName})"
         launchJavaProcess(
             port,
@@ -798,8 +883,20 @@ public class ProxyService(
             ),
         )
         ClientTypeDictionary[port] = "Native (${os.shortName})"
-        this.connections.addSessionMonitor(port, sessionMonitor)
+        this.connections.addSessionMonitor(port, wrapSessionMonitor(port, sessionMonitor))
         launchExecutable(port, result.outputPath, os, character)
+    }
+
+    private fun wrapSessionMonitor(
+        port: Int,
+        sessionMonitor: SessionMonitor<BinaryHeader>,
+    ): SessionMonitor<BinaryHeader> {
+        return CompositeSessionMonitor(
+            listOf(
+                sessionMonitor,
+                TranscriptStoreSessionMonitor(port, mcpTranscriptStore, settingsStore),
+            ),
+        )
     }
 
     private fun removeSessionMonitor(port: Int) {

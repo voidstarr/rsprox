@@ -19,13 +19,16 @@ import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
+import javax.swing.JCheckBoxMenuItem
 import javax.swing.BorderFactory
 import javax.swing.JFrame
+import javax.swing.JLabel
 import javax.swing.JMenu
 import javax.swing.JMenuItem
 import javax.swing.JOptionPane
 import javax.swing.JPanel
 import javax.swing.KeyStroke
+import javax.swing.JTextField
 import javax.swing.WindowConstants.DO_NOTHING_ON_CLOSE
 import kotlin.system.exitProcess
 
@@ -35,6 +38,7 @@ public class App {
     private val launchBar: LaunchBar = LaunchBar(sessionsPanel)
     private val transcriptionManager: TranscriptionManager = TranscriptionManager()
     public val statusBar: StatusBar = StatusBar(transcriptionManager)
+    private var mcpEnabledMenuItem: JCheckBoxMenuItem? = null
 
     public fun init() {
         val width = service.getAppWidth()
@@ -118,6 +122,8 @@ public class App {
         // Configure the app menu bar.
         setupMenuBar()
 
+        ensureMcpServerRunningFromConfig()
+
         frame.transferHandler = FileDropHandler(service, transcriptionManager)
     }
 
@@ -174,6 +180,38 @@ public class App {
 
                 addSeparator()
 
+                val mcpEnabled =
+                    JCheckBoxMenuItem("Enable MCP Server").apply {
+                        mnemonic = 'M'.code
+                        isSelected = service.isMcpEnabled()
+                        addActionListener {
+                            val enable = isSelected
+                            try {
+                                service.setMcpEnabled(enable)
+                            } catch (t: Throwable) {
+                                // revert UI + persisted setting
+                                isSelected = false
+                                runCatching { service.setMcpEnabled(false) }
+                                JOptionPane.showMessageDialog(
+                                    frame,
+                                    "Unable to ${if (enable) "start" else "stop"} MCP server: ${t.message ?: t::class.simpleName}",
+                                    "MCP Server",
+                                    JOptionPane.ERROR_MESSAGE,
+                                )
+                            }
+                        }
+                    }
+                mcpEnabledMenuItem = mcpEnabled
+                add(mcpEnabled)
+
+                val mcpSettings =
+                    JMenuItem("MCP Server Settings...").apply {
+                        addActionListener { showMcpSettingsDialog() }
+                    }
+                add(mcpSettings)
+
+                addSeparator()
+
                 val exitItem = JMenuItem("Exit")
                 exitItem.mnemonic = 'X'.code
                 exitItem.accelerator = KeyStroke.getKeyStroke("alt F4")
@@ -184,6 +222,66 @@ public class App {
                 add(exitItem)
             },
         )
+    }
+
+    private fun ensureMcpServerRunningFromConfig() {
+        if (!service.isMcpEnabled()) return
+        try {
+            service.startMcpServer()
+        } catch (t: Throwable) {
+            runCatching { service.setMcpEnabled(false) }
+            mcpEnabledMenuItem?.isSelected = false
+            JOptionPane.showMessageDialog(
+                frame,
+                "Unable to start MCP server: ${t.message ?: t::class.simpleName}",
+                "MCP Server",
+                JOptionPane.ERROR_MESSAGE,
+            )
+        }
+    }
+
+    private fun showMcpSettingsDialog() {
+        val bindField = JTextField(service.getMcpBindAddress(), 24)
+        val portField = JTextField(service.getMcpPort().toString(), 8)
+
+        val panel = JPanel(MigLayout("wrap 2", "[][grow,fill]", ""))
+        panel.add(JLabel("Bind address"))
+        panel.add(bindField)
+        panel.add(JLabel("Port"))
+        panel.add(portField)
+
+        val result =
+            JOptionPane.showConfirmDialog(
+                frame,
+                panel,
+                "MCP Server Settings",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE,
+            )
+        if (result != JOptionPane.OK_OPTION) return
+
+        val bind = bindField.text.trim()
+        val port = portField.text.trim().toIntOrNull()
+        if (bind.isEmpty() || port == null) {
+            JOptionPane.showMessageDialog(
+                frame,
+                "Please enter a valid bind address and port.",
+                "MCP Server Settings",
+                JOptionPane.ERROR_MESSAGE,
+            )
+            return
+        }
+
+        try {
+            service.setMcpEndpoint(bind, port)
+        } catch (t: Throwable) {
+            JOptionPane.showMessageDialog(
+                frame,
+                "Unable to apply MCP settings: ${t.message ?: t::class.simpleName}",
+                "MCP Server Settings",
+                JOptionPane.ERROR_MESSAGE,
+            )
+        }
     }
 
     private fun FlatMenuBar.createThemes() {

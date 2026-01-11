@@ -32,6 +32,9 @@ dependencies {
     implementation(libs.okhttp3)
     implementation(libs.gson)
     implementation(libs.kryo)
+    implementation(rootProject.libs.mcp.kotlin.sdk)
+    implementation(rootProject.libs.ktor.server.cio)
+    implementation(rootProject.libs.ktor.server.sse)
     findSubprojects(projects.protocol.name).forEach {
         implementation(it)
     }

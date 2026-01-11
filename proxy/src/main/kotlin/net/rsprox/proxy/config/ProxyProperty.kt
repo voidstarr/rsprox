@@ -25,6 +25,11 @@ public class ProxyProperty<T>(
         val SELECTED_CLIENT = ProxyProperty("app.client", IntProperty)
         val SELECTED_PROXY_TARGET = ProxyProperty("app.target", IntProperty)
 
+        // mcp
+        val MCP_ENABLED = ProxyProperty("mcp.enabled", BooleanProperty)
+        val MCP_BIND_ADDRESS = ProxyProperty("mcp.bind.address", StringProperty)
+        val MCP_PORT = ProxyProperty("mcp.port", IntProperty)
+
         // other
         val RUNELITE_RSPROX_CONNECTION = ProxyProperty("runelite.rsprox.connection", BooleanProperty)
     }
