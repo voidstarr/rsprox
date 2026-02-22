@@ -60,6 +60,7 @@ import net.rsprox.protocol.v235.GameClientProtProviderV235
 import net.rsprox.protocol.v235.GameServerProtProviderV235
 import net.rsprox.protocol.v235.ServerPacketDecoderServiceV235
 import net.rsprox.protocol.v236.ClientPacketDecoderServiceV236
+import net.rsprox.protocol.v236.ClientPacketEncoderServiceV236
 import net.rsprox.protocol.v236.GameClientProtProviderV236
 import net.rsprox.protocol.v236.GameServerProtProviderV236
 import net.rsprox.protocol.v236.ServerPacketDecoderServiceV236
@@ -401,6 +402,7 @@ public class DecoderLoader {
         return RevisionDecoder(
             236,
             ClientPacketDecoderServiceV236(huffmanCodec),
+            ClientPacketEncoderServiceV236(huffmanCodec),
             ServerPacketDecoderServiceV236(huffmanCodec, cache),
             GameClientProtProviderV236,
             GameServerProtProviderV236,
