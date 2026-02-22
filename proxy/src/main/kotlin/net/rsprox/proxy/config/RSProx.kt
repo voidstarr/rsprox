@@ -20,8 +20,8 @@ internal val FAKE_CERTIFICATE_FILE: Path = SIGN_KEY_DIRECTORY.resolve("fake-cert
 internal val JAGEX_ACCOUNTS_FILE: Path = CONFIGURATION_PATH.resolve("jagex-accounts.properties")
 internal val RUNELITE_LAUNCHER_REPO_DIRECTORY: Path = CONFIGURATION_PATH.resolve("runelite-launcher")
 public val SCRIPTS_DIRECTORY: Path = CONFIGURATION_PATH.resolve("scripts")
-internal const val CURRENT_REVISION: Int = 235
-internal const val LATEST_SUPPORTED_PLUGIN: Int = 235
+internal const val CURRENT_REVISION: Int = 236
+internal const val LATEST_SUPPORTED_PLUGIN: Int = 236
 
 /**
  * Http server port needs to be hard-coded as we modify it in a few RuneLite classes directly.
